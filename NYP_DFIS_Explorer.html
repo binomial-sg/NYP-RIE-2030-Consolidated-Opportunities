@@ -1,0 +1,1582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NYP Opportunities — DFIS Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Syne+Mono&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+  :root {
+    --bg: #080c14;
+    --surface: #0e1420;
+    --border: #1e2a3a;
+    --text: #e8eef8;
+    --muted: #5a7090;
+    --sbm: #ff6b35;
+    --shss: #00d4ff;
+    --seg: #7fff6b;
+    --sdm: #f0c040;
+    --sit: #ff69b4;
+    --sas: #e8c99a;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+  }
+
+  /* ===================== SHARED STYLES ===================== */
+  .hdr {
+    padding: 16px 20px 12px;
+    background: rgba(8,12,20,0.97);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .hdr h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.1rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .hdr p {
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .filter-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 16px;
+    background: rgba(14,20,32,0.95);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .filter-group-label {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+
+  .chip {
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: rgba(14,20,32,0.85);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    user-select: none;
+  }
+
+  .chip:hover { border-color: rgba(255,255,255,0.3); color: var(--text); }
+  .chip.active { color: #080c14; border-color: transparent; }
+
+  /* ===================== DESKTOP 3D ===================== */
+  #desktop-view {
+    display: none;
+  }
+
+  #canvas-container {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 0;
+  }
+
+  .desktop-hdr {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 10;
+    padding: 20px 28px 16px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    background: linear-gradient(to bottom, rgba(8,12,20,0.95) 60%, transparent);
+    pointer-events: none;
+  }
+
+  .desktop-hdr h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .desktop-hdr p { font-size: 0.72rem; color: var(--muted); font-weight: 300; }
+
+  .desktop-legend {
+    position: fixed;
+    bottom: 24px;
+    left: 28px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--muted);
+  }
+
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .controls-hint {
+    position: fixed;
+    top: 20px;
+    right: 28px;
+    z-index: 10;
+    font-size: 0.68rem;
+    color: var(--muted);
+    text-align: right;
+    line-height: 1.7;
+  }
+
+  .bubble-legend {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .bubble-legend-label { font-size: 0.68rem; color: var(--muted); font-family: 'Syne Mono', monospace; }
+  .bubble-legend-items { display: flex; align-items: center; gap: 12px; }
+  .bubble-legend-item { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .bubble-circle { border-radius: 50%; background: rgba(255,255,255,0.25); border: 1px solid rgba(255,255,255,0.4); }
+  .bubble-legend-item span { font-size: 0.6rem; color: var(--muted); }
+
+  .desktop-filter-panel {
+    position: fixed;
+    top: 80px;
+    left: 28px;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    pointer-events: all;
+  }
+
+  /* Tooltip */
+  .tooltip {
+    position: fixed;
+    z-index: 20;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+    max-width: 340px;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip-inner {
+    background: rgba(14,20,32,0.97);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+    backdrop-filter: blur(12px);
+  }
+  .tt-school { font-size: 0.65rem; font-weight: 700; font-family: 'Syne', sans-serif; text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 5px; }
+  .tt-title { font-size: 0.88rem; font-weight: 500; color: var(--text); line-height: 1.4; margin-bottom: 10px; }
+  .tt-domain { font-size: 0.68rem; color: var(--muted); margin-bottom: 10px; font-style: italic; }
+  .tt-section { margin-bottom: 8px; }
+  .tt-label { font-size: 0.62rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.09em; color: var(--muted); margin-bottom: 3px; }
+  .tt-text { font-size: 0.76rem; color: #a0b4cc; line-height: 1.55; }
+  .tt-scores { display: flex; gap: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+  .tt-score { display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 1; }
+  .tt-score-val { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 700; }
+  .tt-score-key { font-size: 0.6rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; text-align: center; }
+
+  /* ===================== MOBILE HEATMAP ===================== */
+  #mobile-view {
+    display: none;
+    flex-direction: column;
+  }
+
+  .mobile-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .mobile-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.68rem;
+    color: var(--muted);
+  }
+
+  .mobile-legend-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .school-section {
+    margin-bottom: 4px;
+  }
+
+  .school-section-header {
+    padding: 10px 16px 8px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .opp-card {
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    cursor: pointer;
+  }
+
+  .opp-card-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .opp-title-mobile {
+    flex: 1;
+    font-size: 0.78rem;
+    font-weight: 500;
+    color: var(--text);
+    line-height: 1.4;
+  }
+
+  .score-pills {
+    display: flex;
+    gap: 3px;
+    flex-shrink: 0;
+  }
+
+  .score-pill {
+    width: 22px;
+    height: 22px;
+    border-radius: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .expand-arrow {
+    font-size: 0.65rem;
+    color: var(--muted);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+
+  .opp-card.open .expand-arrow { transform: rotate(180deg); }
+
+  .opp-card-detail {
+    display: none;
+    padding: 0 16px 14px;
+  }
+
+  .opp-card.open .opp-card-detail { display: block; }
+
+  .detail-label-mobile {
+    font-size: 0.6rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-top: 10px;
+    margin-bottom: 3px;
+  }
+
+  .detail-text-mobile {
+    font-size: 0.75rem;
+    color: #a0b4cc;
+    line-height: 1.6;
+  }
+
+  .domain-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.08);
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
+  .score-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .score-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+  }
+
+  .score-val-mobile {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  .score-key-mobile {
+    font-size: 0.55rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  /* Toggle button */
+  .toggle-btn {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    z-index: 200;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.72rem;
+    font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(14,20,32,0.92);
+    color: var(--text);
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+  .toggle-btn:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.4);
+  }
+</style>
+</head>
+<body>
+
+
+<button class="toggle-btn" id="toggleBtn">⊞ List View</button>
+
+<!-- ==================== MOBILE VIEW ==================== -->
+<div id="mobile-view">
+  <div class="hdr">
+    <h1>NYP Opportunities</h1>
+    <p>Tap any card to expand details</p>
+  </div>
+
+  <div class="filter-panel" id="mobile-filter-panel">
+    <div>
+      <div class="filter-group-label">Filter by School</div>
+      <div class="filter-chips" id="mobileSchoolFilters">
+        <div class="chip active" data-school="ALL" style="background:rgba(255,255,255,0.15);color:var(--text)">All</div>
+        <div class="chip active" data-school="SBM" style="background:var(--sbm);color:#080c14">SBM</div>
+        <div class="chip active" data-school="SHSS" style="background:var(--shss);color:#080c14">SHSS</div>
+        <div class="chip active" data-school="SEG" style="background:var(--seg);color:#080c14">SEG</div>
+        <div class="chip active" data-school="SDM" style="background:var(--sdm);color:#080c14">SDM</div>
+        <div class="chip active" data-school="SIT" style="background:var(--sit);color:#080c14">SIT</div>
+        <div class="chip active" data-school="SAS" style="background:var(--sas);color:#080c14">SAS</div>
+      </div>
+    </div>
+    <div>
+      <div class="filter-group-label">Filter by Domain</div>
+      <div class="filter-chips" id="mobileDomainFilters">
+        <div class="chip active" data-domain="ALL" style="background:rgba(255,255,255,0.15);color:var(--text)">All</div>
+        <div class="chip active" data-domain="MTC" style="background:#7c3aed;color:#fff">MTC</div>
+        <div class="chip active" data-domain="HHP" style="background:#be123c;color:#fff">HHP</div>
+        <div class="chip active" data-domain="USS" style="background:#065f46;color:#fff">USS</div>
+        <div class="chip active" data-domain="SNDE" style="background:#0c4a6e;color:#fff">SNDE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mobile-legend" id="mobileLegend">
+    <div class="mobile-legend-item"><div class="mobile-legend-dot" style="background:var(--sbm)"></div><span style="color:var(--sbm)">SBM</span></div>
+    <div class="mobile-legend-item"><div class="mobile-legend-dot" style="background:var(--shss)"></div><span style="color:var(--shss)">SHSS</span></div>
+    <div class="mobile-legend-item"><div class="mobile-legend-dot" style="background:var(--seg)"></div><span style="color:var(--seg)">SEG</span></div>
+    <div class="mobile-legend-item"><div class="mobile-legend-dot" style="background:var(--sdm)"></div><span style="color:var(--sdm)">SDM</span></div>
+    <div class="mobile-legend-item"><div class="mobile-legend-dot" style="background:var(--sit)"></div><span style="color:var(--sit)">SIT</span></div>
+    <div class="mobile-legend-item"><div class="mobile-legend-dot" style="background:var(--sas)"></div><span style="color:var(--sas)">SAS</span></div>
+  </div>
+
+  <div id="mobileCards"></div>
+</div>
+
+<!-- ==================== DESKTOP VIEW ==================== -->
+<div id="desktop-view">
+  <div id="canvas-container"></div>
+
+  <div class="desktop-hdr">
+    <div>
+      <h1>NYP Opportunities — 3D Explorer</h1>
+      <p>Drag to rotate · Scroll to zoom · Hover a bubble to explore</p>
+    </div>
+  </div>
+
+  <div class="controls-hint">
+    X axis — Desirability<br>
+    Y axis — Feasibility<br>
+    Z axis — Scalability<br>
+    Bubble size — Impact
+  </div>
+
+  <div class="desktop-legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sbm)"></div><span style="color:var(--sbm)">SBM</span> · School of Business Management</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--shss)"></div><span style="color:var(--shss)">SHSS</span> · School of Health & Social Sciences</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--seg)"></div><span style="color:var(--seg)">SEG</span> · School of Engineering</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sdm)"></div><span style="color:var(--sdm)">SDM</span> · School of Design & Media</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sit)"></div><span style="color:var(--sit)">SIT</span> · School of Information Technology</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--sas)"></div><span style="color:var(--sas)">SAS</span> · School of Applied Sciences</div>
+  </div>
+
+  <div class="bubble-legend">
+    <span class="bubble-legend-label">Impact →</span>
+    <div class="bubble-legend-items">
+      <div class="bubble-legend-item"><div class="bubble-circle" style="width:10px;height:10px"></div><span>1</span></div>
+      <div class="bubble-legend-item"><div class="bubble-circle" style="width:16px;height:16px"></div><span>2</span></div>
+      <div class="bubble-legend-item"><div class="bubble-circle" style="width:22px;height:22px"></div><span>3</span></div>
+      <div class="bubble-legend-item"><div class="bubble-circle" style="width:28px;height:28px"></div><span>4</span></div>
+      <div class="bubble-legend-item"><div class="bubble-circle" style="width:36px;height:36px"></div><span>5</span></div>
+    </div>
+  </div>
+
+  <div class="desktop-filter-panel">
+    <div>
+      <div class="filter-group-label">Filter by School</div>
+      <div class="filter-chips" id="schoolFilters">
+        <div class="chip active" data-school="ALL" style="background:rgba(255,255,255,0.15);color:var(--text)">All Schools</div>
+        <div class="chip active" data-school="SBM" style="background:var(--sbm)">SBM</div>
+        <div class="chip active" data-school="SHSS" style="background:var(--shss)">SHSS</div>
+        <div class="chip active" data-school="SEG" style="background:var(--seg)">SEG</div>
+        <div class="chip active" data-school="SDM" style="background:var(--sdm);color:#080c14">SDM</div>
+        <div class="chip active" data-school="SIT" style="background:var(--sit)">SIT</div>
+        <div class="chip active" data-school="SAS" style="background:var(--sas);color:#080c14">SAS</div>
+      </div>
+    </div>
+    <div>
+      <div class="filter-group-label">Filter by Domain</div>
+      <div class="filter-chips" id="domainFilters">
+        <div class="chip active" data-domain="ALL" style="background:rgba(255,255,255,0.15);color:var(--text)">All Domains</div>
+        <div class="chip active" data-domain="MTC" style="background:#7c3aed">MTC</div>
+        <div class="chip active" data-domain="HHP" style="background:#be123c">HHP</div>
+        <div class="chip active" data-domain="USS" style="background:#065f46">USS</div>
+        <div class="chip active" data-domain="SNDE" style="background:#0c4a6e">SNDE</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tooltip" id="tooltip">
+    <div class="tooltip-inner" id="tooltip-inner"></div>
+  </div>
+</div>
+
+<script>
+const opportunities = [
+  {
+    id: 1,
+    school: 'SBM', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Blue Zone 2.0 Singapore: Urban Longevity Ecosystem for Healthy Ageing',
+    problem: 'Singapore faces rapidly rising ageing-related chronic disease, healthcare costs, sedentary lifestyles, and social isolation among seniors. Existing healthcare systems remain treatment-focused rather than preventive, healthspan and longevity-oriented.',
+    users: 'Older adults, pre-retirees, healthcare providers, employers, active ageing communities, and public health agencies in Singapore. Actually once we adopt a paradigm mindset shift to look at healthspan and longevity enhancement rather than aging related chronic illness, the target audiences can start as early as mid 30s.',
+    solution: 'Nanyang Polytechnic can develop a Blue Zone 2.0 applied innovation platform integrating gerodiagnostics, preventive health education, lifestyle intervention programs, community-based healthy ageing pilots, and industry partnerships. NYP can serve as a living testbed for urban longevity models combining healthcare, technology, nutrition, various exercise modalities, and social connectedness. The initiative can support workforce training, translational research, and scalable healthy longevity solutions for Singapore\'s ageing population and our very own Singapore Blue Zone 2.0 branding.',
+    D: 5, F: 5, I: 5, S: 3
+  },
+  {
+    id: 2,
+    school: 'SBM', domain: 'MTC', subdomain: 'Transport',
+    title: 'Resilient & Adaptive Supply Chains',
+    problem: 'Singapore is an open economy highly dependent on imports and any global disruption (pandemic, war, shipping blockage) directly impacts availability of goods.',
+    users: 'Supply Chain & Logistics Companies',
+    solution: 'Supply chain and logistics will contribute to transport RIE2030 by driving applied innovation in smart, green, and resilient logistics systems, leveraging AI, digital platforms, and industry collaboration to translate research into deployable solutions that enhance Singapore\'s competitiveness as a leading connectivity and logistics hub.',
+    D: 4, F: 4, I: 4, S: 3
+  },
+  {
+    id: 3,
+    school: 'SBM', domain: 'USS', subdomain: 'Translation & deployment of sustainability solutions',
+    title: 'Building Sustainability Framework',
+    problem: 'Singapore SMEs face increasing pressure to adopt sustainable practices but are constrained by limited resources, capability gaps, and cost concerns, making it challenging for them to balance short-term business survival with long-term sustainability transformation.',
+    users: 'SMEs',
+    solution: 'SBM supports companies in Sustainability Reporting Programme and Building HR Sustainability Programme. SBM also has a series of Sustainability courses to help industry partners with their Sustainability Framework. By combining consultancy, applied training, and real-world projects, SBM helps organisations with their first step into Social and Governance Sustainability.',
+    D: 4, F: 4, I: 4, S: 4
+  },
+  {
+    id: 4,
+    school: 'SBM', domain: 'HHP', subdomain: 'Lifelong capability and adult learning',
+    title: 'Job Redesign, Coaching & Mentoring',
+    problem: 'Artificial intelligence is expected to significantly reshape the labour market by changing how work is done and displacing certain roles, particularly those involving routine, repetitive or data-processing tasks. Many existing jobs will not disappear entirely but will be reconfigured, as AI automates portions of work while creating demand for new skills such as data interpretation, AI oversight and human-centric capabilities like creativity and judgment.',
+    users: 'All',
+    solution: 'Through its CET programmes, NYP can build AI literacy and role-based skills across the workforce, while guiding companies to redesign workflows so that humans and AI work in complementary ways—freeing staff from repetitive tasks to focus on creativity, problem-solving and decision-making. By combining industry-relevant training, applied projects and advisory on job redesign, NYP can help organisations improve productivity, create more meaningful work, and ensure their workforce remains resilient and future-ready amid AI-driven transformation, where roles are increasingly reshaped rather than replaced.',
+    D: 4, F: 4, I: 4, S: 4
+  },
+  {
+    id: 5,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'AI-Enabled Monitoring of Elderly Living Alone in the Community.',
+    problem: 'Elderly who live alone or whose caregivers are at work the whole day are left to care for themselves much of the time. In times of crises or emergencies, there might be a delay or inability to call for help.',
+    users: 'Elderly, caregivers, first responders.',
+    solution: 'Develop AI-powered monitoring systems e.g. wearables or smart home devices to detect cardiac events, falls, severe changes in physiology like blood sugar levels etc. This can be a collaboration between SHSS, SIT and/or SEG, and linked to SCDF MyResonder App or 995 hotline.',
+    D: 3, F: 4, I: 4, S: 1
+  },
+  {
+    id: 6,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'One Stop Digital Service Platform for Seniors',
+    problem: 'Currently AIC works with various agencies and volunteers to provide befriending services, meals on wheels, and home medical/nursing care for elderly living alone. However, there are still gaps in the service, and relying on volunteers or human caregivers is resource intensive. As the life expectancy in Singapore increases with declining marriage and birth rates, seniors will find themselves living longer and alone in their later years.',
+    users: 'Elderly, service providers',
+    solution: 'Develop a one-stop service digital platform with agentic AI to help seniors living alone. To partner SIT, SDM and NCSS/MSF.',
+    D: 2, F: 3, I: 3, S: 1
+  },
+  {
+    id: 7,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Deploy AI-powered assistive shower technology to reduce care burden and improve hygiene safety for Singapore\'s elderly.',
+    problem: 'In Singapore, the challenge of showering and personal hygiene for the elderly is a quietly pervasive issue spanning both community and hospital settings. Many elderly face daily risks bathing independently due to mobility limitations, slippery wet-floor bathrooms, and a lack of assistive fittings. In hospitals, showering elderly inpatients is time-consuming and places considerable strain on nursing staff.',
+    users: 'Elderly, service providers',
+    solution: 'Easy to use, Assisted - Safe - Shower Technology that can be easily adapted in existing structures',
+    D: 4, F: 3, I: 4, S: 1
+  },
+  {
+    id: 8,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Impact of AI and digital media on adolescents',
+    title: 'Position NYP as a regional training hub to train educators, counsellors, professionals working with youth etc.',
+    problem: 'Many educators, counsellors, and HR professionals lack practical, evidence-based training to effectively understand and respond to adolescents\' behaviours shaped by AI and digital media. Existing training is often theoretical, outdated, or unable to simulate real-world digital scenarios (e.g., cyberbullying, AI dependency, identity issues).',
+    users: 'Educators, school counsellors, youth workers, social workers, social service agencies',
+    solution: '1. Offer stackable certification programmes for CET and industry training. 2. Offer Virtual/hybrid, train-the-trainer programmes. 3. Drive applied research and publish data on adolescent digital behaviour trends.',
+    D: 4, F: 4, I: 3, S: 4
+  },
+  {
+    id: 9,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Cognition and skills acquisition',
+    title: 'Adopt emerging technologies for interactive and multi-disciplinary Teaching and Learning',
+    problem: 'Most Health and Social Care course programmes face challenges engaging digitally native students through traditional, discipline-specific teaching approaches, where students are still largely trained within domain silos. This limits opportunities for collaborative, practice-based learning.',
+    users: 'Health and Social Care students, Trainer Providers',
+    solution: '[Within the CCC] Develop an Immersive Learning Lab that integrates emerging edu tech into relevant learning units for NYP students (e.g. use of VR to teach/assess communication skills between a multi-disciplinary team or with a client). Collaborate with SEG and SIT.',
+    D: 3, F: 3, I: 3, S: 3
+  },
+  {
+    id: 10,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Using cognitive dissonance to influence healthy food choices amongst Singaporeans of various age groups.',
+    problem: 'While there appears to be an uptick in Singaporeans engaging in physical exercise to pre-COVID numbers, obesity rates have paradoxically been on the rise. This has been attributed to total caloric surplus overload, which is directly impacted by food choice behaviour.',
+    users: 'Singaporeans 18 to 65.',
+    solution: 'An app that requires users to key in their attitudes and values toward food and eating, and their daily caloric goals consistent with the stated attitudes and values. When making food choices, the user takes pictures of the food in consideration and the app calculates the calories and remind the user of his/her expressed food attitudes and values if the calories exceed the goals. Work with SEG/SIT/SAS, with the potential inclusion of gov agencies such as HPB.',
+    D: 4, F: 4, I: 4, S: 4
+  },
+  {
+    id: 11,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'AI-powered robotics to fulfil social-cognitive & emergency needs of elderly',
+    problem: 'Elderly persons who live alone risk social isolation that can have negative impact on their mental (cognitive & emotional) well-being. In the event of emergencies, no one would be around to raise an alert.',
+    users: 'Elderly persons 70 & above.',
+    solution: 'An AI-powered robot (in a form that\'s pleasant to the elderly person) that could engage in interpersonal conversation, with built-in smart monitoring system that could detect non-movement after a certain period of time and then connect to emergency contacts for assistance. Work with SEG/SIT, with the potential inclusion of relevant SMEs.',
+    D: 3, F: 3, I: 4, S: 4
+  },
+  {
+    id: 12,
+    school: 'SHSS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'AI-powered telephony check-ins to close gaps due to post-institutional transition drop-off.',
+    problem: 'In the context of healthcare in Singapore, "post-institutional transition drop-off" refers to the significant gap in care, coordination, and support that occurs when patients—particularly frail, elderly patients with complex needs—move from a highly supported hospital environment back to their homes or community settings.',
+    users: 'Elderly persons 70 & above.',
+    solution: 'Using AI capability such as that provided by SoundHound Chat AI, automated telephony check-ins may be made to elderly persons living alone. During such check-ins, data will also be collected in terms of certain health indicators/info of the individual (e.g., medication compliance, feelings of illness, etc.) for real-time follow-ups, as necessary. Work with SEG/SIT, with the potential inclusion of relevant SMEs and/or gov agencies such as healthcare institutions, GovTech, etc.',
+    D: 4, F: 2, I: 4, S: 3
+  },
+  {
+    id: 13,
+    school: 'SEG', domain: 'MTC', subdomain: 'Additive Manufacturing',
+    title: 'AI Assisted Inspection for detecting defects in Metal Additive Manufacturing',
+    problem: 'Existing process could only capture additive manufacturing (AM) defects via manual visual inspection, which was ineffective for ensuring high quality standards of the AM parts.',
+    users: 'Advanced Manufacturing industry leveraging on Additive Manufacturing technology to support production.',
+    solution: 'This project is to develop a deep learning model for defect detection involving the follows: - Collection of images from the metal additive manufacturing process - Labelling of images for the collected images - Choosing and training a deep learning model for defect detection - Deploying the trained AI model for inspection of metal additive manufacturing',
+    D: 3, F: 4, I: 3, S: 3
+  },
+  {
+    id: 14,
+    school: 'SEG', domain: 'USS', subdomain: 'Urban sustainability systems',
+    title: 'Cooling Tower side filtration in Commercial Office Buildings',
+    problem: 'Facility managers continue to rely on long-established regulatory guidelines and legacy treatment regimes for cooling tower operations, resulting in limited adoption of emerging technologies and suboptimal system performance. Despite advancements in side-stream filtration and electrolysis-based treatment, there is insufficient awareness, validation, and integration of these solutions.',
+    users: 'Facility management companies managing office buildings',
+    solution: 'Develop an intelligent cooling tower optimisation solution that integrates side-stream filtration, electrolysis treatment, edge IoT sensing, and pump frequency optimisation to reduce blowdown water volume, eliminate chemical dosing, improve discharge water quality for reuse and reduce power utilisation. Deploy the solution across NYP chiller systems as live testbeds in partnership with industry operators.',
+    D: 4, F: 5, I: 4, S: 4
+  },
+  {
+    id: 15,
+    school: 'SEG', domain: 'MTC', subdomain: 'Robotics',
+    title: 'AI-Enabled Defect Detection in Automated Manufacturing.',
+    problem: 'Existing defect detection using vision is primarily based on comparing parts with known defects. When defects are not available, artificially created defects is often used. This is subjected to wrong decision.',
+    users: 'Manufacturing industry',
+    solution: 'Develop AI-enabled defect detection which might involve the following: - Develop or deploy or trained AI model for defect and good parts - Consolidation of defective and good images - Predict the defect using trained model',
+    D: 3, F: 3, I: 4, S: 3
+  },
+  {
+    id: 16,
+    school: 'SEG', domain: 'MTC', subdomain: 'Robotics',
+    title: 'Autonomous Humanoid Robot for performing laborious, repetitive manufacturing processes',
+    problem: 'A wide variety of industrial tasks, including material gathering and transport, pick-and-place operations, product quality control & inspection, machine tending, tool use, and fine manipulation involve deployment of significant manpower resource, which is highly constrained and costly.',
+    users: 'High-mix, low-volume, high-product value manufacturing companies, Advanced Manufacturing companies in Semiconductors, Biomedical devices, etc',
+    solution: 'Develop an AI-powered humanoid robot that is intelligent, autonomous and flexible to perceive, understand and act in the physical manufacturing environment. It is designed to work safely and efficiently alongside human workers and other systems in any industrial settings. The new humanoid combines intuitive human-robot interaction (HRI), a dexterous robotic hand, and an innovative AI model trained on real-world data pertaining to any task.',
+    D: 3, F: 3, I: 5, S: 5
+  },
+  {
+    id: 17,
+    school: 'SEG', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Holistic 24/7 elderly monitoring and alert system for active ageing in community, institutions and homes',
+    problem: 'With growing ageing population, dearth of care assistant professionals due to severe manpower crunch, and increasing associated healthcare cost, it is imperative that the elderlys are being constantly and closely monitored at all times, to ensure that they stay physically active for as long as they could, and medical care is being rendered as early as possible.',
+    users: 'The health & wellness for elderly sector like daycare & nursing home, hospital, assisted living community home, personal home, etc',
+    solution: 'Develop an autonomous multi-modal sensory (including camera, radar sensor, etc) solution in ensuring a safe and conducive environment for the elderly at any settings including privacy-constraint environment like bedroom, toilet, etc. Custom-designed AI-driven human behavioral inference models pertaining to elderly movement and mobility patterns would be designed, interfaced and integrated with any alert triggering platforms',
+    D: 5, F: 4, I: 5, S: 5
+  },
+  {
+    id: 18,
+    school: 'SEG', domain: 'USS', subdomain: 'Decarbonisation',
+    title: 'Green electrification with bio-methane from bio-waste decomposition',
+    problem: 'The growing volumes of organic bio-waste generated from urban, industrial, and agricultural activities present a significant environmental and energy challenge, as much of this waste is disposed of in landfills where it decomposes anaerobically and releases methane, a potent greenhouse gas.',
+    users: 'Power-hungry facilities like data centres, semiconductors mfg. plants, chemical processing plants, etc',
+    solution: '* Collaborate with SAS and/or industry partners to explore into controlled anaerobic digestion processes that converts organic bio-waste within NYP campus into biogas * Collaborate with SAS and/or industry partners to explore into upgrading produced biogas to high-purity biomethane * Collaborate with SAS and/or industry partners to integrate these systems with existing NYP campus distributed energy grid infrastructure that can be optimized with AI-enabled energy management system',
+    D: 5, F: 1, I: 5, S: 5
+  },
+  {
+    id: 19,
+    school: 'SEG', domain: 'MTC', subdomain: 'Transport',
+    title: 'Enhances transport operations through applied training, automation solutions, and workforce upskilling programs.',
+    problem: 'Sector\'s struggle to maintain efficient, reliable operations amid rising complexity, manpower shortages, and increasing adoption of advanced technologies. Operators face challenges in ensuring workforce readiness, minimizing downtime, and maintaining safety standards creating a gap with the rapid expansion.',
+    users: 'All users of public transport, including rail and bus commuters.',
+    solution: '1. Partner public transport providers to co-develop CBL-focused curricula that accelerate the transition from learning to application. 2. Work with public transport providers to design effective upskilling pathways through short courses and full qualification programmes. 3. Collaborate with SGRA to cascade CBL and CBA methodologies, strengthening sector-wide capabilities.',
+    D: 4, F: 4, I: 5, S: 4
+  },
+  {
+    id: 20,
+    school: 'SEG', domain: 'USS', subdomain: 'Decarbonisation',
+    title: 'AI-Driven Energy Simulation for HVAC Systems in Commercial Buildings and Data Centres',
+    problem: 'Current HVAC practices often lead to energy wastage due to overcooling and inefficient control strategies. Energy simulation tools exist to support optimisation are typically complex, require specialised expertise, and involve lengthy setup processes, making them impractical for rapid decision-making in real-world operations.',
+    users: 'Facility managers and data centre operators leveraging on energy simulation for optimisation.',
+    solution: 'The project objective is to develop an AI-Powered Energy Simulation Application involving the follows: - Data collection (building energy datasets, HVAC, materials, schedules) - Data cleaning (remove inconsistencies, ensure quality) - Data enrichment (add metadata such as climate and energy metrics) - Vector data base creation (dataset for LLM-RAG model development) - Chatbot UI development - Dashboard visualisation development',
+    D: 3, F: 4, I: 4, S: 4
+  },
+
+  {
+    id: 21,
+    school: 'SEG', domain: 'SNDE', subdomain: 'AI engineering and deployment capability',
+    title: 'Flexible Agentic AI Platform enabled by hybrid infrastructure encompassing both on-premise and cloud deployment.',
+    problem: 'Enterprises across industries are constrained in scaling AI adoption due to rigid infrastructure architectures that cannot support secure, flexible deployment of AI workloads across both on-premise and cloud environments. This limits their ability to operationalise agentic AI workflows at scale, resulting in fragmented deployment, data governance challenges, and underutilisation of AI capabilities.',
+    users: 'Middle Size SMEs',
+    solution: 'Scalable and sustainable AI Platform allows enterprises host their own agentic application.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  {
+    id: 22,
+    school: 'SEG', domain: 'SNDE', subdomain: 'AI (aligned to NAIS 2.0)',
+    title: 'Agentic AI to automate workflow across different industries covering advanced manufacturing, Healthcare, Urban Solution, Retail, F&B',
+    problem: 'Enterprises across advanced manufacturing, healthcare, urban solutions, retail, and F&B face fragmented, manual, and siloed workflows that limit their ability to scale AI adoption beyond pilot use cases. While AI tools exist, organisations lack integrated, autonomous systems that can orchestrate end-to-end workflows, resulting in suboptimal productivity gains, inconsistent decision-making, and poor return on AI investments.',
+    users: 'SMEs',
+    solution: 'Agentic AI with cusomised features that allow different configuration to suit various business needs.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  // SDM
+  {
+    id: 23,
+    school: 'SDM', domain: 'SNDE', subdomain: 'AI engineering and deployment capability',
+    title: 'AI-Enabled Tutor for Computer Graphics Modelling',
+    problem: 'In the Computer Graphics Modelling LU DX1126, it is observed that it is difficult for one lecturer to attend to the many questions from students learning about C++ programming. Often, the questions are quite similar and therefore, it would be great to have a contextualized AI tutor to be available 24/7 to support the lecturer. That way, the lecturer can address the more complicated questions.',
+    users: 'Year 2 students Diploma in Game Devt & Tech',
+    solution: 'Develop an AI tutor for Computer Graphics Modelling DX1126 that is available 24/7 to answer any students queries. AI solution should be able to track and analyze questions asked and provide insight to the lecturer to follow up. This solution should be scalable to other LU/WIU via a template.',
+    D: 4, F: 3, I: 3, S: 4
+  },
+  // SIT
+  {
+    id: 24,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Technical experts & engineers',
+    title: 'Skills-Up Accelerator: 6-Month Part-Time Agentic AI CET for SME Practitioners',
+    problem: 'Most SMEs run shallow GenAI pilots that never integrate or sustain — the gap is not tools but practitioners inside the SME who can build, deploy, and evolve agentic AI on their own systems.',
+    users: 'SME technical staff and operations leads in manufacturing, logistics, professional services, and retail; SSG/SkillsFuture-eligible learners; ECI/EIS-aligned firms.',
+    solution: 'Run the Skills-Up Accelerator: a 6-month part-time CET programme combining structured training with hands-on mentorship, where SME participants build a real agentic-AI deployment on a leading LLM platform inside their own business. Anchored on CITI and Applied AI & Analytics faculty, funded via SSG/SkillsFuture as a CET course. Outcome: a deployed agentic AI solution plus an in-house capability to extend it.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  {
+    id: 25,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Technical experts & engineers',
+    title: 'Agentic AI Full-Time Intensive: Compressed Industry-Ready CET for Career Switchers',
+    problem: 'Mid-career professionals and SME owners who need agentic-AI capability fast cannot commit to a 6-month part-time schedule; the market lacks a credible compressed alternative tied to real deployment.',
+    users: 'Career switchers, SME owners, and managers who need rapid, intensive agentic-AI capability development; SSG/SkillsFuture-eligible learners.',
+    solution: 'Develop a complementary full-time intensive CET programme — a compressed agentic-AI build sprint with mentor-led real-project deployment, completed in weeks rather than months. Anchored on CITI and Applied AI & Analytics, funded via SSG/SkillsFuture, designed to feed the same SME deployment outcomes as the Skills-Up Accelerator through a faster track.',
+    D: 3, F: 3, I: 3, S: 5
+  },
+  {
+    id: 26,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Technical experts & engineers',
+    title: '3-Month Mentorship-Led Agentic AI Implementation for SMEs (SSG Mentorship Grant)',
+    problem: 'SMEs willing to deploy agentic AI need a delivery vehicle that is shorter than the Accelerator yet still produces a real implementation — without paying full consultancy rates or losing in-house capability.',
+    users: 'SMEs ready to commit to a near-term agentic-AI deployment; firms qualifying for the SSG mentorship grant scheme.',
+    solution: 'Run a 3-month mentorship-led implementation programme funded under the SSG mentorship grant: NYP mentors work alongside SME staff to scope, build, and deploy an agentic-AI solution in 3 months. Anchored on CITI and Applied AI & Analytics. Sits between the 6-month Accelerator and full-time intensive, completing a three-tier CET offer matched to different SME readiness levels.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  {
+    id: 27,
+    school: 'SIT', domain: 'SNDE', subdomain: 'AI engineering and deployment capability',
+    title: 'Agentic AI Workplace Digitalisation Suite for SME Back-Office Operations',
+    problem: 'SMEs across sectors share the same back-office pain — document-heavy onboarding, claims, compliance, procurement — yet each procures point tools that do not orchestrate end-to-end.',
+    users: 'SMEs across all sectors (manufacturing, services, healthcare admin, F&B, retail) with repetitive workplace processes that span multiple systems.',
+    solution: 'Build a cross-sector Workplace Digitalisation Suite powered by agentic AI on a leading LLM platform: pre-built agents for common back-office workflows, integration patterns with common SME systems (accounting, HR, CRM), and a deployment playbook. Anchored on CITI; designed to cut across all domains while targeting SMEs as the primary user. Sustained by Skills-Up Accelerator graduates inside each SME.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+  {
+    id: 28,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Industry co-development and applied use cases',
+    title: 'Sector Agentic-AI Blueprints Co-Developed With Trade Associations',
+    problem: 'Individual SMEs cannot afford sector-wide agentic-AI strategy, and trade associations lack a delivery partner to translate strategy into shared, deployable solutions.',
+    users: 'Trade associations and chambers representing many SMEs in one sector (e.g. precision engineering, logistics, retail).',
+    solution: 'Partner with trade associations to co-create sector agentic-AI blueprints, then deliver shared reference solutions and pooled deployment across member SMEs — with member-firm staff trained through the Skills-Up Accelerator or 3-month mentorship track to sustain solutions in-house. SIT students contribute through supervised capstone projects on live deployments. Anchored on CITI and Applied AI & Analytics. Positions SIT as a sector-shaping partner with multi-year, high-trust relationships.',
+    D: 3, F: 3, I: 5, S: 5
+  },
+  {
+    id: 29,
+    school: 'SIT', domain: 'SNDE', subdomain: 'AI engineering and deployment capability',
+    title: 'Embodied AI Cognition Stack — SIT-Owned \'Brain\' for Service and Inspection Robots',
+    problem: 'Robotics deployments stall not on hardware but on the \'brain\' — perception, reasoning, adaptive behaviour, and reusable skills that generalise to messy real environments are hard to build.',
+    users: 'Robotics integrators, humanoid/service robot operators, and enterprise users deploying inspection or service robots who need intelligent behaviour and adaptable skill modules.',
+    solution: 'SIT owns the embodied-AI cognition layer — perception, sensor fusion, scene understanding, task reasoning, on-device inference, plus a reusable behaviour and skill library (manipulation, navigation, human interaction, task adaptation). Built on robot platforms supplied through a partner ecosystem; curriculum strengthened by collaboration with leading schools in China. Anchored on CITI and Applied AI & Analytics, packaged as a re-deployable robot brain across partner platforms and use cases.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+  {
+    id: 30,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Digital trust & security',
+    title: 'CSA Cyber Essentials & Cyber Trust Certification Pathway for SMEs (IT, Cloud, AI, OT)',
+    problem: 'Government tenders and enterprise buyers increasingly require CSA Cyber Essentials or Cyber Trust certification, but most SMEs lack the in-house capability to interpret requirements, close gaps, and prepare evidence across IT, cloud, AI, and OT.',
+    users: 'SMEs and mid-market firms — particularly those bidding for government work, supplying larger enterprises, or operating converged IT/OT environments — needing a clear pathway to CSA certification.',
+    solution: 'Establish a structured CSA certification pathway service: gap assessment, controls implementation, evidence preparation, and audit support across the expanded scope (IT, Cloud, AI, OT). Anchored on the Cybersecurity & Digital Forensics faculty and CITI, aligned to CSA\'s CISO-as-a-Service scheme with up to 70% SME co-funding. Productised as a repeatable engagement, with a CET track that builds in-house cyber capability so certification is sustained.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  {
+    id: 31,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Digital trust & security',
+    title: 'AI Assurance and Red-Teaming Testbed for Enterprises Deploying AI Systems',
+    problem: 'Enterprises adopting AI lack a trusted, independent environment to validate model safety, robustness, and compliance before production, slowing safe scale-up.',
+    users: 'Mid-to-large enterprises and SMEs deploying customer-facing or operational AI; system integrators needing third-party assurance.',
+    solution: 'Build an AI Assurance Testbed offering structured red-teaming, bias and robustness testing, and pre-deployment validation aligned to IMDA\'s Global AI Assurance Sandbox and CSA Cyber Trust. Anchored on Cybersecurity & Digital Forensics and CITI. Position NYP as the neutral validation partner with CSA/IMDA co-funding.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  {
+    id: 32,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Digital trust & security',
+    title: 'Digital Forensics and Incident-Response Capability for SMEs and Sector Agencies',
+    problem: 'When SMEs and smaller agencies face a breach they lack forensic readiness and response capability, leading to prolonged downtime and unrecovered evidence.',
+    users: 'SMEs, sector agencies, and infrastructure operators needing affordable forensic readiness and incident response.',
+    solution: 'Develop a digital-forensics and incident-response service: readiness assessment, evidence-handling playbooks, and on-call response. Anchored on the Cybersecurity & Digital Forensics faculty, with an embedded talent pipeline of forensics-trained students. Repeatable retainer model that builds long-term trust relationships.',
+    D: 3, F: 5, I: 3, S: 5
+  },
+  {
+    id: 33,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Digital trust & security',
+    title: 'AI-Powered Penetration Testing Service for SMEs and Cyber Trust Certified Firms',
+    problem: 'Traditional penetration testing is expensive, point-in-time, and slow — SMEs cannot afford it at the frequency that Cyber Trust certification and modern threat landscape demand, leaving real exposure between annual tests.',
+    users: 'SMEs pursuing or maintaining CSA Cyber Trust certification, firms with regulatory obligations, and ICT vendors needing continuous security validation.',
+    solution: 'Develop an AI-powered penetration testing service combining automated reconnaissance and exploitation, LLM-assisted vulnerability triage, and human-led validation by certified testers. Anchored on the Cybersecurity & Digital Forensics faculty and CITI; delivered as continuous or quarterly engagements rather than annual one-offs, making pen-testing affordable enough to sustain Cyber Trust compliance. Embedded CET track trains SME staff in interpreting and acting on findings.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+  {
+    id: 34,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Quantum technologies',
+    title: 'Quantum-Safe Cryptography Migration Service for SMEs and Critical-Sector Firms',
+    problem: 'Harvest-now-decrypt-later attacks make today\'s encryption a future liability, but most firms lack a roadmap to migrate to post-quantum cryptography.',
+    users: 'SMEs and critical-sector operators (finance, healthcare, infrastructure) with long-lived sensitive data and no PQC migration capability.',
+    solution: 'Develop a quantum-safe cryptography migration service: cryptographic inventory, risk triage of long-lived data, and a phased PQC transition aligned to emerging NIST/CSA standards. Anchored on the Cybersecurity & Digital Forensics faculty and CITI, delivered as a repeatable engagement plus a workforce track building PQC skills. Builds NYP\'s quantum capability from a credible, deployable starting point.',
+    D: 3, F: 3, I: 5, S: 5
+  },
+  {
+    id: 35,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Quantum technologies',
+    title: 'AI-Plus-Quantum Applied Use-Case Exploration for Optimisation-Heavy Industries',
+    problem: 'Quantum has huge theoretical promise but few near-term applied use cases that intersect with AI and deliver real industry value, so NYP risks investing without a wedge.',
+    users: 'Logistics, financial-services, and engineering firms with complex optimisation problems where AI-plus-quantum methods may eventually outperform classical approaches.',
+    solution: 'Run a deliberate AI-plus-quantum applied use-case exploration: scoping studies with industry partners on optimisation, simulation, and ML acceleration problems where quantum or quantum-inspired methods are credible. Anchored on Applied AI & Analytics faculty and CITI. Outcome: a shortlist of 2-3 use cases NYP commits to over the next 24 months, building capability with a clear wedge.',
+    D: 3, F: 3, I: 3, S: 3
+  },
+  {
+    id: 36,
+    school: 'SIT', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Agentic AI Eldercare Management Platform to Address Sector Manpower Shortage',
+    problem: 'Eldercare providers face severe and worsening manpower shortage; existing systems cannot scale care coordination, monitoring, and family communication with thin staff.',
+    users: 'Eldercare operators, Active Ageing Centres, and community care providers under Age Well SG; aligned to existing NYP partner relationships in this space.',
+    solution: 'Build an agentic-AI eldercare management platform: agents for care coordination, family communication, monitoring triage, and administrative workflows, integrated with existing eldercare systems. SIT supplies the AI brain; partners supply care domain context. Anchored on CITI and Applied AI & Analytics, designed for scale across operators.',
+    D: 5, F: 5, I: 5, S: 5
+  },
+  {
+    id: 37,
+    school: 'SIT', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Agentic AI Platform for Pre-Care and Post-Care Patient Journeys',
+    problem: 'Clinical AI deployment is heavily constrained, but pre-care (screening, triage, preparation) and post-care (recovery, adherence, follow-up) are underserved despite high impact on outcomes and costs.',
+    users: 'Hospitals, clinics, and community health providers seeking to extend care beyond the clinical encounter without adding clinician workload.',
+    solution: 'Develop an agentic-AI platform focused on pre-care and post-care journeys: patient preparation, intake automation, recovery monitoring, adherence support, and follow-up coordination. Anchored on CITI and Applied AI & Analytics, deliberately scoped to avoid clinical-decision complexity. Repeatable across hospital and clinic partners, with workforce upskilling embedded.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+  {
+    id: 38,
+    school: 'SIT', domain: 'SNDE', subdomain: 'Industry co-development and applied use cases',
+    title: 'Digital Avatar Voice-Agent Solution for Retail, Service, and Customer-Facing SMEs',
+    problem: 'Retail and service SMEs face a manpower-and-cost squeeze in customer-facing roles, but off-the-shelf chatbots feel impersonal and do not reduce real workload.',
+    users: 'Retail SMEs, service businesses, and customer-facing operators seeking to extend or replace human capacity in routine interactions.',
+    solution: 'Develop a digital avatar voice-agent solution: human-like avatars, conversational AI on a leading LLM platform, and integration with order/service backends. Anchored on CITI and Applied AI & Analytics. Productised as a deployable retail/service offering scalable across SMEs, with a self-update capability so businesses can refresh their avatar\'s behaviour as offerings change.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+
+  {
+    id: 39,
+    school: 'SAS', domain: 'MTC', subdomain: 'Industry co-development and applied use cases',
+    title: 'Ready Meal translation',
+    problem: 'Manpower shortage in F&B; Often not able to increase revenue, e.g. due to entry to overseas markets.',
+    users: 'F&B owners & food manufacturers',
+    solution: 'NYP SAS will develop a structured Ready Meals translational platform to accelerate product development and commercialisation. The initiative positions ready-to-eat products as a scalable pathway for F&B companies to expand beyond the Singapore market. Through industry collaborations, it supports optimisation of cooking, chilling, and packaging for export readiness. This bridges lab-scale innovation to consistent, cost-effective manufacturing for global market access.',
+    D: 5, F: 5, I: 4, S: 5
+  },
+  {
+    id: 40,
+    school: 'SAS', domain: 'SNDE', subdomain: 'Industry co-development and applied use cases',
+    title: 'AI-Enabled integation for food manufactring',
+    problem: 'Food manufacturing is slower to adopt Industry 4.0 due to limited time, expertise, and risk concerns. Resistance to disruption and downtime further hinders implementation. This reduces the effectiveness of available technologies and delays real-world adoption.',
+    users: 'Facility owner and product brand owner',
+    solution: 'NYP SAS will lead the translation of Manufacturing 4.0 solutions for the food manufacturing sector by partnering with experienced industrial leaders in advanced manufacturing. Through this collaboration, SAS will contextualise proven Industry 4.0 practices into food production environments, ensuring practical and low-disruption adoption. SAS and 4.0 manufacturing leader will support process optimisation, pilot validation, and workforce capability uplift, enabling manufacturers to upgrade operations without significant downtime risks. This approach focuses on bridging technical gaps while accelerating scalable and industry-ready solutions.',
+    D: 3, F: 4, I: 4, S: 4
+  },
+  {
+    id: 41,
+    school: 'SAS', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Functional food product',
+    problem: 'Functional food products are often marketed based on perceived benefits without sufficient scientific validation or product optimisation. There is limited integration of formulation, efficacy, and consumer acceptance during development. As a result, products may not consistently deliver claimed health benefits or expected quality. This creates a gap between marketing claims and actual product performance in the market.',
+    users: 'Facility owner and brand owner',
+    solution: 'NYP SAS will drive functional food development through a multidisciplinary approach involving food scientists, nutritionists, and culinary experts. The focus is on evidence-based formulation, functional ingredient optimisation, and sensory validation. This ensures products are both effective and consumer-acceptable without reliance on clinical trials. The approach supports successful applications such as dysphagia-friendly products.',
+    D: 4, F: 5, I: 4, S: 4
+  },
+  {
+    id: 42,
+    school: 'SAS', domain: 'USS', subdomain: 'Urban sustainability systems',
+    title: 'Food waste mangement',
+    problem: 'Urban food waste management systems are lagging behind current needs. Food manufacturing by-products-to-food approaches remain limited in scalability and practical implementation. This constrains circular economy outcomes and reduces overall resource efficiency.',
+    users: 'Facility owner and food importer',
+    solution: 'NYP SAS will support food manufacturing by-products-to-food initiatives through structured food science and process development. The focus is on converting selected waste streams into safe, value-added food applications. Pilot validation and formulation optimisation ensure product safety and acceptance. This enables scalable and practical solutions for industry adoption.',
+    D: 4, F: 4, I: 4, S: 4
+  },
+  {
+    id: 43,
+    school: 'SAS', domain: 'MTC', subdomain: 'Bioeconomy',
+    title: 'Produce high-value sustainable bio-based-commercial products through synthetic biology',
+    problem: 'Manufacturing has been reliant on fossil-based, resource-intensive processes, creating sustainability- and supply chain-challenges, hence the need for alternative scalable bio-based products generated by synthetic biology and sustainable feedstocks. This offers a pathway to decarbonise production while strengthening supply chain resilience and creating new opportunities in future foods, marine biotech, and green biomanufacturing.',
+    users: 'Chemical manufacturer, Food Manufacturer, Aquaculture company',
+    solution: 'Develop a scalable synthetic biology platform using engineered microorganisms to convert sustainable, low-cost feedstocks into high-value bio-based products. Focus is on optimizing microbial strains, feedstock utilisation, and bioprocess design using AI to improve yield, reduce costs, and enable industrial scalability. This solution supports a transition to sustainable manufacturing while enhancing supply chain resilience and circular resource use, and also catalysing new innovation in future foods, marine biotechnology and green biomanufacturing.',
+    D: 4, F: 3, I: 4, S: 4
+  },
+  {
+    id: 44,
+    school: 'SAS', domain: 'HHP', subdomain: 'NPM Phase 3',
+    title: 'Translating genomic insights into personalised nutrition (for diabetes prevention/healthy ageing), nutritional biomarker discovery and personalised medication through AI for multi-omics analytics.',
+    problem: 'The National Precision Medicine (NPM) Phase 1 and 2 have been about the sequencing of 10,000 and then 100,000, Singaporean genomes respectively. Phase 3 addresses the question of how to translate genomic information into clinical outcomes such as identification of biomarkers to prevent disease, reduce adverse drug reactions, food allergies, predict efficacy of cancer treatment, faciitate personalised nutrition, healthy ageing and prevent muscle wastage due to ageing.',
+    users: 'Singaporeans wanting healthcare; Healthcare Clusters and Hospitals; Govt Agencies e.g. MOH, NRF, A*STAR; Healthcare and Biomedical Industry; Food & Nutrition Companies; Students & Adult Learners via Workforce Development',
+    solution: 'NYP is positioned to complement and collaborate with rather than compete with major genome discovery efforts by organisations such as Genome Institute of Spore, PRECISE and the universities. NYP plays the role in last-mile translation turning genomic and -omics discoveries into interventions via food & nutrition, medication, health outcomes and training of the workforce as data analysts, lab technologists/ assistants in precision medicine. NYP is in discussion with CGH and Seng Kang Hospital (SKH) to explore collaboration in genomics-to-biomarker discovery to-metabolomics tapping on NYPs capabiities in chemical analysis. This will allow NYP to build capabilities in precision medicine, apply for NPM Phase 3 R&D Grants with CGH and SKH under RIE2030 and positions NYP as a lead polytechnic in this field.',
+    D: 3, F: 3, I: 5, S: 4
+  },
+  {
+    id: 45,
+    school: 'SEG', domain: 'USS', subdomain: 'Urban sustainability systems',
+    title: 'Autonomous Quadruped Robot for performing environmental monitoring in areas that are difficult or hazardous for humans, such as power / chemical plant utility infastructure, underground tunnels, land transport infrastructure, etc.',
+    problem: 'Urban cities today face increasing pressure to maintain sustainability while coping with ageing infrastructure, dense environments, labour shortages, and rising environmental risks. Traditional approaches to infrastructure inspection, environmental monitoring, and maintenance are often labor-intensive, hazardous, and inefficient, particularly in confined or hard-to-reach areas such as tunnels, drainage systems, and elevated structures. In addition, existing environmental monitoring methods are limited by static sensors or manual inspections, resulting in insufficient spatial coverage and delayed detection of issues such as pollution, waste accumulation, or structural degradation.',
+    users: 'Primarily relevant government agencies, infrastructure & facility operators, environmental regulators, and urban service providers who are collectively responsible for maintaining safe, efficient, and sustainable urban environments.',
+    solution: 'Develop an autonomous fleet of AI-powered quadruped robots that can be deployed in any terrain-challenging settings. The development involves 3 integrated layers: Autonomous Quadruped Platform (Edge Layer); AI & Sensor Fusion Module (Perception Layer); Cloud-Based Smart City-Digital Twin Integration (Data Layer).',
+    D: 4, F: 3, I: 5, S: 5
+  },
+  {
+    id: 46,
+    school: 'SEG', domain: 'USS', subdomain: 'Climate mitigation & adaptation',
+    title: 'Autonomous, integrated mutli-terrain drone fleet for performing continuous, high-resolution, and real-time assessment of aquatic ecosystems',
+    problem: 'Due to ongoing climate changes, Singapore is facing an existential threat due to rising sea water level and pollution. Effective environmental monitoring of aquatic ecosystems remains a significant challenge due to the limitations of traditional water monitoring approaches, which are time-consuming, labour-intensive, and costly, resulting in low-frequency data collection and delayed reporting. As a result, critical pollution events, such as chemical spills, algal blooms, or contamination, may go undetected or be identified too late for effective intervention.',
+    users: 'Primarily relevant government agencies, environmental regulators, and urban service providers who are collectively responsible for maintaining safe, efficient, and sustainable urban environments.',
+    solution: 'Develop an integrated aerial, surface, and underwater platforms that can collectively provide a multi-layered understanding of aquatic ecosystems, with an AI-powered predictive environmental decision-making model, trained with continuous data streams captured by the advanced sensors onboard these drones.',
+    D: 5, F: 2, I: 4, S: 5
+  },
+  {
+    id: 47,
+    school: 'SEG', domain: 'MTC', subdomain: 'Transport',
+    title: 'AI-powered Transport Telematics platform for fleet management & operation',
+    problem: 'Conventional transport fleets often struggle with lack of real-time visibility, relying on manual records or siloed systems that hinder situational awareness and delay response to operational issues.',
+    users: 'Fleet Owners & Logistics Companies, Regulators & Compliance Authorities',
+    solution: 'Develop an AI-powered IoT-based telematics platform by leveraging real-time data, machine learning, and predictive analytics to optimize routing, detect anomalies, enable proactive maintenance, and provide actionable insights, ultimately improving efficiency, safety, cost control, and operational transparency across the transport fleet.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+  {
+    id: 48,
+    school: 'SEG', domain: 'MTC', subdomain: 'AI',
+    title: 'Embodied Intelligence Platform for Last Mile Supply Chain Logistics / Retail',
+    problem: 'In the industry of Logistics and Supply Chain, many operations still heavily depend on human labour works. With intelligent robotics, it is expected that efficiency and productivity can be improved dramatically across the industry of logistics and supply chain.',
+    users: 'Supermarkets, Retailers & E-commerce Businesses, Logistics & Delivery Service Providers, Warehouse Operators & Fulfilment Centres',
+    solution: 'Belief-State Inventory Management for inventory optimization under uncertain shelf observations; Information-Aware Robot Scheduling where robots choose actions partly for information acquisition; Self-Evolving Retail or Last Mile Supply Chain Logistics Digital Twin updated continuously from robot observations and operational data.',
+    D: 4, F: 2, I: 4, S: 5
+  },
+  {
+    id: 49,
+    school: 'SEG', domain: 'MTC', subdomain: 'Robotics',
+    title: 'Unmanned, Autonomous Underwater & On-water Robotics Platform',
+    problem: 'Human operations in the marine and offshore industry involve significant risk due to exposure to extreme conditions such as high pressure, poor visibility, hazardous subsea infrastructure, and limited physiological tolerance during deep-sea or prolonged missions.',
+    users: 'Offshore Energy & Marine Industry Operators like Seatrium; Maritime Safety & Security Agencies like MPA; Environmental Agencies & Ocean Research Organizations like NEA; Ports & Harbour Operators like PSA',
+    solution: 'Develop an AI-powered Unmanned, Autonomous Underwater & Onwater Robotics Platform that comprises an integrated system of autonomous robotic vehicles, multi-sensor payloads, AI-driven perception and navigation algorithms, onboard edge computing, communication networks, and cloud-based mission control and data analytics, enabling real-time, adaptive, and scalable marine operations.',
+    D: 4, F: 2, I: 4, S: 5
+  },
+  {
+    id: 50,
+    school: 'SEG', domain: 'HHP', subdomain: 'Early detection & prevention',
+    title: 'Smart Remote Telemedical vital sign IoT monitoring platform',
+    problem: 'The rapidly ageing population is placing significant strain on healthcare systems, as elderly individuals typically experience multiple chronic conditions, functional decline, and higher care needs, resulting in increased demand for continuous medical monitoring, screening, and long-term care services. Existing healthcare infrastructure often struggles with limited manpower, fragmented care delivery, and insufficient real-time data, leading to delayed diagnosis and inadequate preventive screening.',
+    users: 'National healthcare agencies & hospitals, nursing homes, residential homes, etc',
+    solution: 'Develop a smart remote, telemonitoring platform that allows elderlies staying at home being monitoring for any vital sign deterioration and alert hospitals or healthcare agencies to respond effectively and provide efficient treatment to them.',
+    D: 5, F: 1, I: 5, S: 5
+  },
+  {
+    id: 51,
+    school: 'SEG', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Embodied AI-enable humanoid robots for elderly living at home alone',
+    problem: 'In the context of more elderly living alone and constrained healthcare resources, they face difficulties in performing daily activities such as housekeeping, meal preparation, and medication management amid declining mobility, cognitive impairments.',
+    users: 'Community Homes & Villages, Residential Homes, etc',
+    solution: 'Develop Embodied AI-enabled humanoid robots that assist elderly individuals living alone by performing everyday household chores such as cleaning, tidying, fetching items, preparing simple meals, and managing routine tasks through intelligent perception and manipulation capabilities.',
+    D: 5, F: 2, I: 5, S: 5
+  },
+  {
+    id: 52,
+    school: 'SEG', domain: 'HHP', subdomain: 'Maximise health and successful longevity (Grand Challenge)',
+    title: 'Embodied AI-enabled robotic pets for social interaction with elderly',
+    problem: 'Elderly individuals who lack regular social engagement are at significantly higher risk of loneliness, depression, and reduced cognitive stimulation, all of which can exacerbate memory loss, emotional instability, and overall decline in mental well-being.',
+    users: 'Community Homes & Villages, Residential Homes, Nursing Homes, etc',
+    solution: 'Human-Robot Interaction (HRI) & Social Intelligence through speech, touch, gesture recognition; Cognitive Stimulation & Behavioral Engagement via conversation, memory games, storytelling; Embodied AI Perception & Context Awareness requiring multimodal sensing (vision, audio, touch) to understand environment and user context.',
+    D: 5, F: 2, I: 5, S: 5
+  },
+  {
+    id: 53,
+    school: 'SEG', domain: 'MTC', subdomain: 'AI',
+    title: 'AI-powered Machine / Equipment Condition Monitoring Platform for Predictive Maintenance',
+    problem: 'Manufacturing factories increasingly need to adopt predictive maintenance technology to remain competitive in an Industry 4.0 landscape where downtime, inefficiency, and cost pressures directly impact profitability. Traditional reactive or scheduled maintenance approaches often lead to unplanned equipment failures or unnecessary servicing.',
+    users: 'Manufacturing Companies, Facilities Management Companies',
+    solution: 'Sensing & Data Acquisition Layer to capture machine health signals in real time with IoT sensors; AI/Analytics & Prediction Layer for anomaly detection, fault classification, and Remaining Useful Life (RUL) prediction; Edge Intelligence & Real-Time Processing for low-latency decision-making at machine level.',
+    D: 5, F: 4, I: 5, S: 5
+  },
+  {
+    id: 54,
+    school: 'SEG', domain: 'SNDE', subdomain: 'Industry co-development and applied use cases',
+    title: 'Embodied AI Innovation Centre for next-generation intelligent robotics systems that directly address societal needs while driving sustainable economic growth.',
+    problem: 'Singapore is confronting a convergence of structural challenges, most notably a rapidly ageing population, a shrinking workforce, and increasing exposure to climate-related stresses, that collectively strain its economic resilience and urban systems. By 2025, over 20% of citizens are already aged 65 and above, with the proportion projected to approach one in four by 2030.',
+    users: 'Society-at-large',
+    solution: 'Acts as a dedicated platform to co-develop, test, and scale Embodied AI systems and solutions, leveraging industry expertise, real operational data, and deployment environments to shorten the innovation cycle and de-risk adoption.',
+    D: 5, F: 3, I: 5, S: 5
+  },
+  {
+    id: 55,
+    school: 'SEG', domain: 'SNDE', subdomain: 'Industry co-development and applied use cases',
+    title: 'Wide Bandgap (WBG) Technology X-change Platform for Mobility, AI, Robotics & IoT development & deployment',
+    problem: 'Modern power electronics face fundamental limitations with conventional silicon devices, including high energy losses, excessive heat generation, limited voltage and temperature tolerance, slow switching speeds, and bulky system designs. These challenges become critical in applications such as AI data centers, electric vehicles, robotics, and IoT systems.',
+    users: 'Diverse industry sectors',
+    solution: 'Wide Bandgap (WBG) semiconductors involving Silicon Carbide (SiC) and Gallium Nitride (GaN) allows high-voltage, high-current, high-frequency, compact systems for cross-sectoral applications demanding power energy efficiency & sustainability, hereby overcoming the key bottlenecks in next-generation intelligent and sustainable systems.',
+    D: 4, F: 3, I: 5, S: 4
+  },
+  {
+    id: 56,
+    school: 'SEG', domain: 'SNDE', subdomain: 'AI engineering and deployment capability',
+    title: 'Embodied AI-enabled Sensor-rich Human Activity Recognition platform for Smart Nation/City Inititative',
+    problem: 'Deploying human behaviour recognition in smart cities is less about building smarter AI and more about understanding messy real-life human environments at scale. People do not move in predictable ways, crowds are dense, behaviours overlap, and visibility is often blocked, making it hard for systems to reliably interpret what is happening.',
+    users: 'Society-at-large',
+    solution: 'Develop a platform covering computer vision + machine learning + deep learning (CNN/LSTM/Transformers), combined with temporal modelling and multimodal sensor fusion to classify and interpret human actions over time, moving from simple sensing to understanding human actions and intent for safer, more efficient, and adaptive environments.',
+    D: 5, F: 3, I: 5, S: 4
+  },
+  {
+    id: 57,
+    school: 'SEG', domain: 'MTC', subdomain: 'Aerospace',
+    title: 'Next-Gen Lightweight Composite Material for Sustanable Aerospace Applications',
+    problem: 'The aerospace industry is under increasing pressure to reduce weight, improve fuel efficiency, and meet stringent environmental sustainability targets. Current lightweight composite materials still face limitations including the trade-off between weight reduction and long-term durability, with concerns over fatigue, micro-cracking, and degradation under repeated thermal and mechanical loading.',
+    users: 'Aerospace Mfg. Companies, Potentially Marine Vessel Mfg. Companies',
+    solution: 'Focus on Advanced Material Research, Structural Design & Concept Development, Structure fabrication & Test with Aerospace Companies. Explore nano-enhanced composites (e.g., CNT, graphene) and bio-based or recyclable matrices (thermoplastics, vitrimers).',
+    D: 4, F: 2, I: 5, S: 5
+  },
+  {
+    id: 58,
+    school: 'SEG', domain: 'SNDE', subdomain: 'Quantum technologies',
+    title: 'Quantum sensors for advanced navigation, structural monitoring, non-destructive testing & healthcare',
+    problem: 'Classical sensor technology faces several inherent limitations that constrain its performance in high-precision and advanced applications, including restriction by fundamental noise sources (thermal noise, shot noise, electronic interference) and reliance on macroscopic physical principles, restricting ability to capture fine-scale or atomic-level changes.',
+    users: 'Society-at-large',
+    solution: 'Explore appropriate quantum sensing modality: Atomic interferometers for inertial sensing; NV-centre diamond sensors for magnetic/defect detection; SQUIDs for ultra-sensitive field detection. Design end-to-end sensing system with laboratory-scale prototyping & integration into application platform.',
+    D: 4, F: 1, I: 5, S: 5
+  },
+];
+
+const SCHOOL_COLORS = {
+  SBM: 0xff6b35, SHSS: 0x00d4ff, SEG: 0x7fff6b, SDM: 0xf0c040, SIT: 0xff69b4, SAS: 0xe8c99a
+};
+const SCHOOL_COLORS_CSS = {
+  SBM: '#ff6b35', SHSS: '#00d4ff', SEG: '#7fff6b', SDM: '#f0c040', SIT: '#ff69b4', SAS: '#e8c99a'
+};
+
+function scoreColor(s) {
+  if (s <= 1) return '#ef4444';
+  if (s === 2) return '#f97316';
+  if (s === 3) return '#eab308';
+  if (s === 4) return '#84cc16';
+  return '#16a34a';
+}
+
+// ===================== RESPONSIVE ROUTING =====================
+const isMobile = window.innerWidth < 768;
+let desktopInitialised = false;
+let mobileInitialised = false;
+let currentView = isMobile ? 'mobile' : 'desktop';
+
+const mobileEl = document.getElementById('mobile-view');
+const desktopEl = document.getElementById('desktop-view');
+const toggleBtn = document.getElementById('toggleBtn');
+
+function showView(view) {
+  currentView = view;
+  if (view === 'mobile') {
+    mobileEl.style.display = 'flex';
+    desktopEl.style.display = 'none';
+    toggleBtn.textContent = '⬡ 3D View';
+    if (!mobileInitialised) { initMobile(); mobileInitialised = true; }
+  } else {
+    mobileEl.style.display = 'none';
+    desktopEl.style.display = 'block';
+    toggleBtn.textContent = '⊞ List View';
+    if (!desktopInitialised) { initDesktop(); desktopInitialised = true; }
+  }
+}
+
+toggleBtn.addEventListener('click', () => {
+  showView(currentView === 'mobile' ? 'desktop' : 'mobile');
+});
+
+// Initial view
+showView(isMobile ? 'mobile' : 'desktop');
+
+// ===================== MOBILE =====================
+function initMobile() {
+  let activeSchools = new Set(['SBM','SHSS','SEG','SDM','SIT','SAS']);
+  let activeDomains = new Set(['MTC','HHP','USS','SNDE']);
+
+  function renderCards() {
+    const container = document.getElementById('mobileCards');
+    container.innerHTML = '';
+    const filtered = opportunities.filter(o => activeSchools.has(o.school) && activeDomains.has(o.domain));
+    const bySchool = {};
+    filtered.forEach(o => { if (!bySchool[o.school]) bySchool[o.school] = []; bySchool[o.school].push(o); });
+
+    ['SBM','SHSS','SEG','SDM','SIT','SAS'].forEach(school => {
+      if (!bySchool[school]) return;
+      const color = SCHOOL_COLORS_CSS[school];
+      const section = document.createElement('div');
+      section.className = 'school-section';
+
+      const hdr = document.createElement('div');
+      hdr.className = 'school-section-header';
+      hdr.style.color = color;
+      hdr.style.background = 'rgba(8,12,20,0.97)';
+      const schoolNames = {SBM:'School of Business Management',SHSS:'School of Health & Social Sciences',SEG:'School of Engineering',SDM:'School of Design & Media',SIT:'School of Information Technology',SAS:'School of Applied Sciences'};
+      hdr.textContent = school + ' — ' + schoolNames[school];
+      section.appendChild(hdr);
+
+      bySchool[school].forEach(opp => {
+        const card = document.createElement('div');
+        card.className = 'opp-card';
+
+        const scores = [opp.D, opp.F, opp.I, opp.S];
+        const avg = (scores.reduce((a,b)=>a+b,0)/4).toFixed(1);
+        const pillsHTML = ['D','F','I','S'].map((k,i) => {
+          const v = scores[i];
+          return `<div class="score-pill" style="background:${scoreColor(v)};color:${v>=3?'#080c14':'#fff'};flex-direction:column;height:32px;width:26px;gap:0px"><span style="font-size:0.45rem;opacity:0.8">${k}</span><span>${v}</span></div>`;
+        }).join('') + `<div class="score-pill" style="background:rgba(255,255,255,0.12);color:var(--text);flex-direction:column;height:32px;width:30px;gap:0px;border:1px solid rgba(255,255,255,0.2)"><span style="font-size:0.45rem;opacity:0.8">AVG</span><span style="font-size:0.7rem">${avg}</span></div>`;
+
+        card.innerHTML = `
+          <div class="opp-card-header">
+            <span class="domain-badge">${opp.domain}</span>
+            <span style="font-family:'Syne',sans-serif;font-size:0.65rem;font-weight:700;color:var(--muted);flex-shrink:0;min-width:18px">#${opp.id}</span>
+            <span class="opp-title-mobile">${opp.title}</span>
+            <div class="score-pills">${pillsHTML}</div>
+            <span class="expand-arrow">▾</span>
+          </div>
+          <div class="opp-card-detail">
+            <div class="detail-label-mobile">Sub-domain</div>
+            <div class="detail-text-mobile">${opp.subdomain}</div>
+            <div class="detail-label-mobile">Target Problem</div>
+            <div class="detail-text-mobile">${opp.problem}</div>
+            <div class="detail-label-mobile">Target Users</div>
+            <div class="detail-text-mobile">${opp.users}</div>
+            <div class="detail-label-mobile">Proposed Solution (NYP's Role)</div>
+            <div class="detail-text-mobile">${opp.solution}</div>
+            <div class="score-row">
+              ${['Desirability','Feasibility','Impact','Scalability'].map((k,i) => `
+                <div class="score-item">
+                  <span class="score-val-mobile" style="color:${color}">${scores[i]}</span>
+                  <span class="score-key-mobile">${k}</span>
+                </div>`).join('')}
+            </div>
+          </div>`;
+
+        card.querySelector('.opp-card-header').addEventListener('click', () => {
+          const isOpen = card.classList.contains('open');
+          document.querySelectorAll('.opp-card.open').forEach(c => c.classList.remove('open'));
+          if (!isOpen) card.classList.add('open');
+        });
+
+        section.appendChild(card);
+      });
+      container.appendChild(section);
+    });
+
+    if (filtered.length === 0) {
+      container.innerHTML = '<div style="padding:40px;text-align:center;color:var(--muted);font-size:0.85rem">No opportunities match your filters.</div>';
+    }
+  }
+
+  function setupMobileFilters() {
+    const domainColors = {MTC:'#7c3aed',HHP:'#be123c',USS:'#065f46',SNDE:'#0c4a6e'};
+
+    document.querySelectorAll('#mobileSchoolFilters .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const school = chip.dataset.school;
+        if (school === 'ALL') {
+          const allOn = activeSchools.size === 6;
+          if (allOn) {
+            activeSchools.clear();
+            document.querySelectorAll('#mobileSchoolFilters .chip:not([data-school="ALL"])').forEach(c => { c.classList.remove('active'); c.style.background='rgba(14,20,32,0.85)'; c.style.color='var(--muted)'; });
+            chip.style.background='rgba(255,255,255,0.08)'; chip.style.color='var(--muted)';
+          } else {
+            activeSchools = new Set(['SBM','SHSS','SEG','SDM','SIT','SAS']);
+            document.querySelectorAll('#mobileSchoolFilters .chip').forEach(c => {
+              c.classList.add('active');
+              if (c.dataset.school==='SBM') { c.style.background='var(--sbm)'; c.style.color='#080c14'; }
+              else if (c.dataset.school==='SHSS') { c.style.background='var(--shss)'; c.style.color='#080c14'; }
+              else if (c.dataset.school==='SEG') { c.style.background='var(--seg)'; c.style.color='#080c14'; }
+              else if (c.dataset.school==='SDM') { c.style.background='var(--sdm)'; c.style.color='#080c14'; }
+              else if (c.dataset.school==='SIT') { c.style.background='var(--sit)'; c.style.color='#080c14'; }
+              else if (c.dataset.school==='SAS') { c.style.background='var(--sas)'; c.style.color='#080c14'; }
+              else { c.style.background='rgba(255,255,255,0.15)'; c.style.color='var(--text)'; }
+            });
+          }
+        } else {
+          if (activeSchools.has(school)) { activeSchools.delete(school); chip.classList.remove('active'); chip.style.background='rgba(14,20,32,0.85)'; chip.style.color='var(--muted)'; }
+          else { activeSchools.add(school); chip.classList.add('active'); chip.style.background=SCHOOL_COLORS_CSS[school]; chip.style.color='#080c14'; }
+          const allChip = document.querySelector('#mobileSchoolFilters .chip[data-school="ALL"]');
+          if (activeSchools.size===6) { allChip.classList.add('active'); allChip.style.background='rgba(255,255,255,0.15)'; allChip.style.color='var(--text)'; }
+          else { allChip.classList.remove('active'); allChip.style.background='rgba(14,20,32,0.85)'; allChip.style.color='var(--muted)'; }
+        }
+        renderCards();
+      });
+    });
+
+    document.querySelectorAll('#mobileDomainFilters .chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const domain = chip.dataset.domain;
+        if (domain === 'ALL') {
+          const allOn = activeDomains.size === 4;
+          if (allOn) {
+            activeDomains.clear();
+            document.querySelectorAll('#mobileDomainFilters .chip:not([data-domain="ALL"])').forEach(c => { c.classList.remove('active'); c.style.background='rgba(14,20,32,0.85)'; c.style.color='var(--muted)'; });
+            chip.style.background='rgba(255,255,255,0.08)'; chip.style.color='var(--muted)';
+          } else {
+            activeDomains = new Set(['MTC','HHP','USS','SNDE']);
+            document.querySelectorAll('#mobileDomainFilters .chip').forEach(c => {
+              c.classList.add('active');
+              if (c.dataset.domain && c.dataset.domain!=='ALL') { c.style.background=domainColors[c.dataset.domain]; c.style.color='#fff'; }
+              else { c.style.background='rgba(255,255,255,0.15)'; c.style.color='var(--text)'; }
+            });
+          }
+        } else {
+          if (activeDomains.has(domain)) { activeDomains.delete(domain); chip.classList.remove('active'); chip.style.background='rgba(14,20,32,0.85)'; chip.style.color='var(--muted)'; }
+          else { activeDomains.add(domain); chip.classList.add('active'); chip.style.background=domainColors[domain]; chip.style.color='#fff'; }
+          const allChip = document.querySelector('#mobileDomainFilters .chip[data-domain="ALL"]');
+          if (activeDomains.size===4) { allChip.classList.add('active'); allChip.style.background='rgba(255,255,255,0.15)'; allChip.style.color='var(--text)'; }
+          else { allChip.classList.remove('active'); allChip.style.background='rgba(14,20,32,0.85)'; allChip.style.color='var(--muted)'; }
+        }
+        renderCards();
+      });
+    });
+  }
+
+  renderCards();
+  setupMobileFilters();
+}
+
+// ===================== DESKTOP =====================
+function initDesktop() {
+  const container = document.getElementById('canvas-container');
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x080c14);
+  scene.fog = new THREE.Fog(0x080c14, 18, 40);
+
+  const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 100);
+  camera.position.set(8, 6, 10);
+  camera.lookAt(2.5, 2.5, 2.5);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(window.devicePixelRatio);
+  container.appendChild(renderer.domElement);
+
+  const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+  scene.add(ambient);
+  const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+  dirLight.position.set(10, 10, 10);
+  scene.add(dirLight);
+  const pointLight1 = new THREE.PointLight(0x4488ff, 1.5, 30);
+  pointLight1.position.set(-3, 8, 3);
+  scene.add(pointLight1);
+
+  function addAxisLine(from, to, color) {
+    const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: 0.35 });
+    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...from), new THREE.Vector3(...to)]);
+    scene.add(new THREE.Line(geo, mat));
+  }
+
+  addAxisLine([0,0,0],[5.5,0,0], 0xff6644);
+  addAxisLine([0,0,0],[0,5.5,0], 0x44aaff);
+  addAxisLine([0,0,0],[0,0,5.5], 0x44ff88);
+
+  for (let i = 1; i <= 5; i++) {
+    addAxisLine([i,0,0],[i,0.15,0], 0xff6644);
+    addAxisLine([0,i,0],[0.15,i,0], 0x44aaff);
+    addAxisLine([0,0,i],[0,0.15,i], 0x44ff88);
+    addAxisLine([i,0,0],[i,5,0], 0x1e2a3a);
+    addAxisLine([0,i,0],[5,i,0], 0x1e2a3a);
+    addAxisLine([i,0,0],[i,0,5], 0x1e2a3a);
+    addAxisLine([0,0,i],[5,0,i], 0x1e2a3a);
+    addAxisLine([0,i,0],[0,i,5], 0x1e2a3a);
+    addAxisLine([0,0,i],[0,5,i], 0x1e2a3a);
+  }
+
+  function makeTextSprite(text, color) {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.font = 'bold 28px Syne, sans-serif';
+    ctx.fillStyle = color;
+    ctx.textAlign = 'center';
+    ctx.fillText(text, 128, 40);
+    const tex = new THREE.CanvasTexture(canvas);
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(2, 0.5, 1);
+    return sprite;
+  }
+
+  const xLabel = makeTextSprite('Desirability', '#ff6644');
+  xLabel.position.set(6, -0.3, 0); scene.add(xLabel);
+  const yLabel = makeTextSprite('Feasibility', '#44aaff');
+  yLabel.position.set(-0.5, 6, 0); scene.add(yLabel);
+  const zLabel = makeTextSprite('Scalability', '#44ff88');
+  zLabel.position.set(0, -0.3, 6); scene.add(zLabel);
+
+  function seededRand(seed) {
+    let s = seed;
+    return function() { s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+  }
+  const JITTER = 0.18;
+
+  const sphereObjects = [];
+
+  opportunities.forEach((opp, i) => {
+    if (opp.D === null) return;
+    const color = new THREE.Color(SCHOOL_COLORS[opp.school]);
+    const radius = 0.08 + (opp.I / 5) * 0.28;
+    const geo = new THREE.SphereGeometry(radius, 32, 32);
+    const mat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity: 0.85, shininess: 80, specular: new THREE.Color(0xffffff) });
+    const mesh = new THREE.Mesh(geo, mat);
+
+    const rand = seededRand(i * 1337 + 42);
+    const jx = (rand() - 0.5) * JITTER * 2;
+    const jy = (rand() - 0.5) * JITTER * 2;
+    const jz = (rand() - 0.5) * JITTER * 2;
+    mesh.position.set(opp.D + jx, opp.F + jy, opp.S + jz);
+    mesh.userData = { opp, index: i, baseRadius: radius, color };
+    scene.add(mesh);
+    sphereObjects.push(mesh);
+
+    const ringGeo = new THREE.RingGeometry(radius + 0.02, radius + 0.06, 32);
+    const ringMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+    const ring = new THREE.Mesh(ringGeo, ringMat);
+    ring.position.copy(mesh.position);
+    scene.add(ring);
+    mesh.userData.ring = ring;
+
+  });
+
+  let isDragging = false;
+  let prevMouse = { x: 0, y: 0 };
+  let spherical = { theta: Math.PI / 4, phi: Math.PI / 3.5, radius: 14 };
+  const target = new THREE.Vector3(2.5, 2.5, 2.5);
+
+  function updateCamera() {
+    camera.position.x = target.x + spherical.radius * Math.sin(spherical.phi) * Math.sin(spherical.theta);
+    camera.position.y = target.y + spherical.radius * Math.cos(spherical.phi);
+    camera.position.z = target.z + spherical.radius * Math.sin(spherical.phi) * Math.cos(spherical.theta);
+    camera.lookAt(target);
+  }
+  updateCamera();
+
+  renderer.domElement.addEventListener('mousedown', e => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+  window.addEventListener('mouseup', () => isDragging = false);
+  window.addEventListener('mousemove', e => {
+    if (isDragging) {
+      const dx = e.clientX - prevMouse.x;
+      const dy = e.clientY - prevMouse.y;
+      spherical.theta -= dx * 0.008;
+      spherical.phi = Math.max(0.2, Math.min(Math.PI - 0.2, spherical.phi - dy * 0.008));
+      prevMouse = { x: e.clientX, y: e.clientY };
+      updateCamera();
+    }
+    handleHover(e);
+  });
+  renderer.domElement.addEventListener('wheel', e => { spherical.radius = Math.max(5, Math.min(25, spherical.radius + e.deltaY * 0.02)); updateCamera(); });
+
+  const raycaster = new THREE.Raycaster();
+  const mouse = new THREE.Vector2();
+  const tooltip = document.getElementById('tooltip');
+  const tooltipInner = document.getElementById('tooltip-inner');
+
+  function handleHover(e) {
+    mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(mouse, camera);
+    const hits = raycaster.intersectObjects(sphereObjects.filter(m => m.visible));
+
+    sphereObjects.forEach(m => {
+      if (!m.visible) return;
+      m.material.opacity = 0.85;
+      m.material.emissive = new THREE.Color(0x000000);
+      if (m.userData.ring) m.userData.ring.material.opacity = 0.25;
+    });
+
+    if (hits.length > 0) {
+      const mesh = hits[0].object;
+      mesh.material.opacity = 1;
+      mesh.material.emissive = new THREE.Color(mesh.userData.color).multiplyScalar(0.3);
+      if (mesh.userData.ring) mesh.userData.ring.material.opacity = 0.6;
+
+      const opp = mesh.userData.opp;
+      const color = SCHOOL_COLORS_CSS[opp.school];
+      tooltipInner.innerHTML = `
+        <div class="tt-school" style="color:${color}">${opp.school} · ${opp.domain}</div>
+        <div class="tt-title"><span style="opacity:0.5;font-size:0.75rem;margin-right:6px">#${opp.id}</span>${opp.title}</div>
+        <div class="tt-domain">${opp.subdomain}</div>
+        <div class="tt-section"><div class="tt-label">Target Problem</div><div class="tt-text">${opp.problem}</div></div>
+        <div class="tt-section"><div class="tt-label">Target Users</div><div class="tt-text">${opp.users}</div></div>
+        <div class="tt-section"><div class="tt-label">Proposed Solution (NYP's Role)</div><div class="tt-text">${opp.solution}</div></div>
+        <div class="tt-scores">
+          <div class="tt-score"><span class="tt-score-val" style="color:${color}">${opp.D}</span><span class="tt-score-key">Desirability</span></div>
+          <div class="tt-score"><span class="tt-score-val" style="color:${color}">${opp.F}</span><span class="tt-score-key">Feasibility</span></div>
+          <div class="tt-score"><span class="tt-score-val" style="color:${color}">${opp.I}</span><span class="tt-score-key">Impact</span></div>
+          <div class="tt-score"><span class="tt-score-val" style="color:${color}">${opp.S}</span><span class="tt-score-key">Scalability</span></div>
+        </div>`;
+
+      const tw = 340, th = 420;
+      let left = e.clientX + 20, top = e.clientY - 20;
+      if (left + tw > window.innerWidth) left = e.clientX - tw - 20;
+      if (top + th > window.innerHeight) top = window.innerHeight - th - 10;
+      if (top < 10) top = 10;
+      tooltip.style.left = left + 'px';
+      tooltip.style.top = top + 'px';
+      tooltip.classList.add('visible');
+      renderer.domElement.style.cursor = 'pointer';
+    } else {
+      tooltip.classList.remove('visible');
+      renderer.domElement.style.cursor = 'grab';
+    }
+  }
+
+  renderer.domElement.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+
+  // Filter logic
+let activeSchools = new Set(['SBM', 'SHSS', 'SEG', 'SDM', 'SIT', 'SAS']);
+let activeDomains = new Set(['MTC', 'HHP', 'USS', 'SNDE']);
+
+function applyFilters() {
+  sphereObjects.forEach(mesh => {
+    const opp = mesh.userData.opp;
+    const visible = activeSchools.has(opp.school) && activeDomains.has(opp.domain);
+    mesh.visible = visible;
+    if (mesh.userData.ring) mesh.userData.ring.visible = visible;
+  });
+}
+
+// School filter chips
+document.querySelectorAll('#schoolFilters .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const school = chip.dataset.school;
+    if (school === 'ALL') {
+      // Toggle all on
+      const allOn = activeSchools.size === 6;
+      if (allOn) {
+        activeSchools.clear();
+        document.querySelectorAll('#schoolFilters .chip:not([data-school="ALL"])').forEach(c => c.classList.remove('active'));
+        chip.style.background = 'rgba(255,255,255,0.08)';
+        chip.style.color = 'var(--muted)';
+      } else {
+        activeSchools = new Set(['SBM', 'SHSS', 'SEG', 'SDM', 'SIT', 'SAS']);
+        document.querySelectorAll('#schoolFilters .chip').forEach(c => {
+          c.classList.add('active');
+          if (c.dataset.school === 'SBM') c.style.background = 'var(--sbm)';
+          else if (c.dataset.school === 'SHSS') c.style.background = 'var(--shss)';
+          else if (c.dataset.school === 'SEG') c.style.background = 'var(--seg)';
+          else if (c.dataset.school === 'SDM') { c.style.background = 'var(--sdm)'; c.style.color = '#080c14'; }
+          else if (c.dataset.school === 'SIT') c.style.background = 'var(--sit)';
+          else if (c.dataset.school === 'SAS') { c.style.background = 'var(--sas)'; c.style.color = '#080c14'; }
+          else { c.style.background = 'rgba(255,255,255,0.15)'; c.style.color = 'var(--text)'; }
+        });
+      }
+    } else {
+      if (activeSchools.has(school)) {
+        activeSchools.delete(school);
+        chip.classList.remove('active');
+        chip.style.background = 'rgba(14,20,32,0.85)';
+        chip.style.color = 'var(--muted)';
+      } else {
+        activeSchools.add(school);
+        chip.classList.add('active');
+        if (school === 'SBM') { chip.style.background = 'var(--sbm)'; chip.style.color = '#080c14'; }
+        else if (school === 'SHSS') { chip.style.background = 'var(--shss)'; chip.style.color = '#080c14'; }
+        else if (school === 'SEG') { chip.style.background = 'var(--seg)'; chip.style.color = '#080c14'; }
+        else if (school === 'SDM') { chip.style.background = 'var(--sdm)'; chip.style.color = '#080c14'; }
+        else if (school === 'SIT') { chip.style.background = 'var(--sit)'; chip.style.color = '#080c14'; }
+        else if (school === 'SAS') { chip.style.background = 'var(--sas)'; chip.style.color = '#080c14'; }
+      }
+      // Update ALL chip
+      const allChip = document.querySelector('#schoolFilters .chip[data-school="ALL"]');
+      if (activeSchools.size === 6) {
+        allChip.classList.add('active');
+        allChip.style.background = 'rgba(255,255,255,0.15)';
+        allChip.style.color = 'var(--text)';
+      } else {
+        allChip.classList.remove('active');
+        allChip.style.background = 'rgba(14,20,32,0.85)';
+        allChip.style.color = 'var(--muted)';
+      }
+    }
+    applyFilters();
+  });
+});
+
+// Domain filter chips
+const domainColors = { MTC: '#7c3aed', HHP: '#be123c', USS: '#065f46', SNDE: '#0c4a6e' };
+document.querySelectorAll('#domainFilters .chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    const domain = chip.dataset.domain;
+    if (domain === 'ALL') {
+      const allOn = activeDomains.size === 4;
+      if (allOn) {
+        activeDomains.clear();
+        document.querySelectorAll('#domainFilters .chip:not([data-domain="ALL"])').forEach(c => {
+          c.classList.remove('active');
+          c.style.background = 'rgba(14,20,32,0.85)';
+          c.style.color = 'var(--muted)';
+        });
+        chip.style.background = 'rgba(255,255,255,0.08)';
+        chip.style.color = 'var(--muted)';
+      } else {
+        activeDomains = new Set(['MTC', 'HHP', 'USS', 'SNDE']);
+        document.querySelectorAll('#domainFilters .chip').forEach(c => {
+          c.classList.add('active');
+          if (c.dataset.domain && c.dataset.domain !== 'ALL') {
+            c.style.background = domainColors[c.dataset.domain];
+            c.style.color = '#fff';
+          } else {
+            c.style.background = 'rgba(255,255,255,0.15)';
+            c.style.color = 'var(--text)';
+          }
+        });
+      }
+    } else {
+      if (activeDomains.has(domain)) {
+        activeDomains.delete(domain);
+        chip.classList.remove('active');
+        chip.style.background = 'rgba(14,20,32,0.85)';
+        chip.style.color = 'var(--muted)';
+      } else {
+        activeDomains.add(domain);
+        chip.classList.add('active');
+        chip.style.background = domainColors[domain];
+        chip.style.color = '#fff';
+      }
+      const allChip = document.querySelector('#domainFilters .chip[data-domain="ALL"]');
+      if (activeDomains.size === 4) {
+        allChip.classList.add('active');
+        allChip.style.background = 'rgba(255,255,255,0.15)';
+        allChip.style.color = 'var(--text)';
+      } else {
+        allChip.classList.remove('active');
+        allChip.style.background = 'rgba(14,20,32,0.85)';
+        allChip.style.color = 'var(--muted)';
+      }
+    }
+    applyFilters();
+  });
+});
+
+
+  function animate() {
+    requestAnimationFrame(animate);
+    const t = Date.now() * 0.001;
+    sphereObjects.forEach((m, i) => {
+      if (m.userData.ring) {
+        m.userData.ring.lookAt(camera.position);
+        m.userData.ring.material.opacity = 0.15 + 0.1 * Math.sin(t * 1.5 + i * 0.8);
+      }
+    });
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+}
+</script>
+</body>
+</html>
